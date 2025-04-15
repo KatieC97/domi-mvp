@@ -10,19 +10,20 @@ class Product(BaseModel):
     quantity: int
     location: str
 
-# Simulate a product database or external API call
-@app.get("/product/{barcode}")
-async def get_product(barcode: str):
-# Simulate a database or an external API call to fetch product details
-# Replace this part with actual logic to query your database
-    if barcode == "12345": # Simulate a successful lookup
-        product = {
-            "name": "Fairy Liquid",
-            "brand": "Fairy",
-            "quantity": 1,
-            "location": "Kitchen"
-        }
-    else: # Handle error or not found case
-        product = {"message": "Product not found"}
+# Error model for better handling
+class ErrorResponse(BaseModel):
+    message: str
 
-    return product
+# Simulate a product database or external API call
+@app.get("/product/{barcode}", response_model=Product, responses={404: {"model": ErrorResponse}})
+async def get_product(barcode: str):
+    # Simulate a database or an external API call to fetch product details
+    if barcode == "12345": # Simulate a successful lookup
+        return Product(
+            name="Fairy Liquid",
+            brand="Fairy",
+            quantity=1,
+            location="Kitchen"
+        )
+    else: # Handle error or not found case
+        return ErrorResponse(message="Product not found")
