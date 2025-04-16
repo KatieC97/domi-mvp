@@ -2,6 +2,8 @@
 
 **Domï** is an accessible inventory tracking app designed to help users manage household products with ease. It was inspired by my mum, who experienced a brain injury and found it difficult to remember what products she had and where they were stored. The app is designed with accessibility, simplicity, and clarity at its core.
 
+>**Note:** This project is public for review purposes only. Please do not fork, copy or redistribute without permission.
+
 ![Domï Logo](frontend/assets/domi_logo.png)
 
 ---
