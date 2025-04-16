@@ -107,6 +107,8 @@
 - [ ] Replace placeholder API with proper product lookup service
 - [ ] Enable cloud sync with Firebase
 - [ ] Add dark mode toggle
+- [ ] Add SVG icons to be displayed for dynamic inventory items based on product keywords (e.g. spray, wipes, bottle) enhancing visual categorisation and accessibility
+- [ ] Add fuzzy searching
 - [ ] Add profile picture or emoji avatar support
 - [ ] Enable Conductrics A/B tests (e.g. alternate layouts/colors)
 - [ ] Implement NFC Sticker tagging tech
