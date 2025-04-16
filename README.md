@@ -3,6 +3,7 @@
 **Domï** is an accessible inventory tracking app designed to help users manage household products with ease. It was inspired by my mum, who experienced a brain injury and found it difficult to remember what products she had and where they were stored. The app is designed with accessibility, simplicity, and clarity at its core.
 
 >**Note:** This project is public for review purposes only. Please do not fork, copy or redistribute without permission.
+>**Note:** This app uses a locally hosted FastAPI backend for barcode product lookup. Since this isn't deployed yet, the scanner will return "Product not found" when tested outside the local environment. All other functionality (login, register, add item manually, dynamic inventory listing, notification deletion, logout, SQLite) works fully.
 
 ![Domï Logo](frontend/assets/domi_logo.png)
 
