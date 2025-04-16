@@ -166,7 +166,7 @@ It began as a personal project during my time at Experian and showcases my abili
 
 ## License
 
-MIT License
+Creative Commons BY-NC-ND 4.0 License
 
 ---
 
