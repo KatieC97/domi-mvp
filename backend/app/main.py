@@ -1,29 +1,46 @@
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+import requests
 from pydantic import BaseModel
 
 app = FastAPI()
 
-# Product model (can be expanded based on your database)
+# Allow CORS for local dev
+origins = ["*"] # Allows all origins for dev
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 class Product(BaseModel):
     name: str
     brand: str
     quantity: int
     location: str
 
-# Error model for better handling
-class ErrorResponse(BaseModel):
-    message: str
-
-# Simulate a product database or external API call
-@app.get("/product/{barcode}", response_model=Product, responses={404: {"model": ErrorResponse}})
+# Product endpoint
+@app.get("/product/{barcode}", response_model=Product)
 async def get_product(barcode: str):
-    # Simulate a database or an external API call to fetch product details
-    if barcode == "12345": # Simulate a successful lookup
-        return Product(
-            name="Fairy Liquid",
-            brand="Fairy",
-            quantity=1,
-            location="Kitchen"
-        )
-    else: # Handle error or not found case
-        return ErrorResponse(message="Product not found")
+    print(f"Fetching product for barcode: {barcode}") # Log the incoming barcode
+
+    response = requests.get(f"https://api.upcitemdb.com/prod/trial/lookup?upc={barcode}")
+    print(f"UPCItemDB raw response: {response.text}") # Log API response
+
+    if response.status_code == 200:
+        data = response.json()
+        items = data.get("items", [])
+        if items:
+            item = items[0]
+            return Product(
+                name=item.get("title", "Unknown Product"),
+                brand=item.get("brand", "Unknown Brand"),
+                quantity=1,
+                location="Kitchen"
+            )
+
+    return JSONResponse(status_code=404, content={"message": "Product not found"})
