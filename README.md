@@ -82,6 +82,7 @@
 
 - **Login / Register**
 - **Dashboard** (with cards: Recently Scanned, Low Stock, Locations, Total Items)
+- **Barcode Scanner** (opens phone camera to scan barcode)
 - **Add Item** (via barcode or manually)
 - **Inventory** (filter/search/save items)
 - **Notifications** (WIP)
