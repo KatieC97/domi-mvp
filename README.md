@@ -20,7 +20,7 @@
 - [Screens](#screens)
 - [Roadmap](#roadmap)
 - [Launch Plan](#launch-plan)
-- [Conductrics Testing](#conductrics-testing)
+- [Conductrics Style Testing](#conductrics-style-testing)
 - [Installation](#installation)
 - [Developer Notes](#developer-notes)
 
@@ -130,10 +130,11 @@
 - App will be finalized with core features and dark mode support
 - Testing with users from Headway Nottingham
 - README and GitHub repo will be updated regularly as features are added
+- Domain secured: [getdomi.app](https://getdomi.app) (Namecheap, May 2025)
 
 ---
 
-## Conductrics Testing
+## Conductrics Style Testing
 
 I plan to expand A/B testing through the Headway Nottingham group to evaluate:
 
