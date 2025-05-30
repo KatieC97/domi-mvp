@@ -53,7 +53,7 @@ class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
                       value: '/inventory',
                       child: Text('Inventory'),
                     ),
-                    PopupMenuItem(value: '/scan', child: Text('Add Item')),
+                    PopupMenuItem(value: '/add', child: Text('Add Item')),
                     PopupMenuItem(
                       value: '/notifications',
                       child: Text('Notifications'),
