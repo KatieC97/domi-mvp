@@ -1,6 +1,10 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import '../services/database_helper.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
+final storage = FlutterSecureStorage();
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -13,6 +17,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   int _tapCount = 0;
+  bool isLoading = false;
 
   void _handleLogoTap() {
     _tapCount++;
@@ -29,57 +34,57 @@ class _LoginScreenState extends State<LoginScreen> {
     final password = _passwordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter email and password')),
       );
       return;
     }
 
-    try {
-      // Web workaround: fixed credentials only
-      if (kIsWeb) {
-        if (email.toLowerCase() == 'test@test.com' &&
-            password == 'Inventory97!') {
-          if (!mounted) return;
-          Navigator.pushReplacementNamed(
-            context,
-            '/dashboard',
-            arguments: 'Katie',
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Invalid web credentials')),
-          );
-        }
-        return;
-      }
-
-      // Native platforms: use SQLite
-      final user = await DatabaseHelper.instance.getUserByEmailAndPassword(
-        email,
-        password,
-      );
-
-      if (!mounted) return;
-
-      if (user != null) {
+    if (kIsWeb) {
+      // Web login fallback
+      if (email.toLowerCase() == 'test@test.com' &&
+          password == 'Inventory97!') {
         Navigator.pushReplacementNamed(
           context,
           '/dashboard',
-          arguments: user['name'],
+          arguments: 'Katie',
         );
       } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Invalid web credentials')),
+        );
+      }
+      return;
+    }
+
+    try {
+      setState(() => isLoading = true);
+      final response = await http.post(
+        Uri.parse('http://127.0.0.1:8000/auth/token'),
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: {'username': email, 'password': password},
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final token = data['access_token'];
+
+        await storage.write(key: 'access_token', value: token);
+        if (!mounted) return;
+        Navigator.pushReplacementNamed(context, '/dashboard', arguments: email);
+      } else {
+        if (!mounted) return;
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Invalid credentials')));
       }
     } catch (e) {
-      debugPrint("Login error: $e");
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Login failed')));
+      ).showSnackBar(const SnackBar(content: Text('Login failed. Try again.')));
+    } finally {
+      if (mounted) setState(() => isLoading = false);
     }
   }
 
@@ -112,47 +117,40 @@ class _LoginScreenState extends State<LoginScreen> {
                   'Password',
                   isPassword: true,
                 ),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () {},
-                    child: const Text(
-                      'Forgot password?',
-                      style: TextStyle(color: Color(0xFF515254)),
-                    ),
-                  ),
-                ),
                 const SizedBox(height: 8),
                 SizedBox(
                   width: double.infinity,
+                  height: 50,
                   child: ElevatedButton(
-                    onPressed: _loginUser,
+                    onPressed: isLoading ? null : _loginUser,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF634A8A),
-                      minimumSize: const Size.fromHeight(50),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(30),
                       ),
                     ),
-                    child: const Text(
-                      'Login',
-                      style: TextStyle(color: Colors.white),
-                    ),
+                    child:
+                        isLoading
+                            ? const CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            )
+                            : const Text(
+                              'Login',
+                              style: TextStyle(color: Colors.white),
+                            ),
                   ),
                 ),
                 const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
+                  height: 50,
                   child: OutlinedButton(
                     onPressed: () {
                       Navigator.pushNamed(context, '/register');
                     },
                     style: OutlinedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(50),
-                      side: const BorderSide(
-                        color: Color(0xFF634A8A),
-                        width: 1,
-                      ),
+                      side: const BorderSide(color: Color(0xFF634A8A)),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(30),
                       ),
@@ -187,11 +185,11 @@ class _LoginScreenState extends State<LoginScreen> {
           vertical: 16,
         ),
         enabledBorder: OutlineInputBorder(
-          borderSide: const BorderSide(color: Color(0xFFBDBECB), width: 1),
+          borderSide: const BorderSide(color: Color(0xFFBDBECB)),
           borderRadius: BorderRadius.circular(30),
         ),
         focusedBorder: OutlineInputBorder(
-          borderSide: const BorderSide(color: Color(0xFFBDBECB), width: 1),
+          borderSide: const BorderSide(color: Color(0xFFBDBECB)),
           borderRadius: BorderRadius.circular(30),
         ),
       ),

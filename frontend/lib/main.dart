@@ -3,9 +3,9 @@ import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/inventory_screen.dart';
-import 'screens/add_item_screen.dart';
 import 'screens/notifications_screen.dart';
 import 'screens/settings_screen.dart';
+import 'screens/add_item_screen.dart';
 import 'screens/barcode_scanner_screen.dart';
 
 void main() {

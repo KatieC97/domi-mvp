@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart'; // for kIsWeb
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
 import '../widgets/app_top_bar.dart';
-import '../services/user_session.dart'; // <- for global name
+import '../services/user_session.dart';
+
+final storage = FlutterSecureStorage();
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -12,20 +18,55 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   String userName = 'there';
+  List<Map<String, dynamic>> items = [];
+  bool isLoading = true;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-
-    // Get from route args OR global session
     final routeName = ModalRoute.of(context)?.settings.arguments as String?;
-
     final name = routeName ?? UserSession.getUserName();
 
     if (name != null && mounted) {
       setState(() {
         userName = name;
       });
+    }
+
+    if (!kIsWeb) {
+      fetchItems();
+    }
+  }
+
+  Future<void> fetchItems() async {
+    setState(() => isLoading = true);
+    try {
+      final token = await storage.read(key: 'access_token');
+      if (token == null) throw Exception('No token found');
+
+      final response = await http.get(
+        Uri.parse('http://127.0.0.1:8000/items'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        setState(() {
+          items = data.cast<Map<String, dynamic>>();
+          isLoading = false;
+        });
+      } else if (response.statusCode == 401) {
+        throw Exception('Unauthorised');
+      } else {
+        throw Exception('Failed to load items');
+      }
+    } catch (e) {
+      debugPrint('Error fetching items: $e');
+      if (!mounted) return;
+      setState(() => isLoading = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Failed to load items')));
     }
   }
 
@@ -53,86 +94,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   constraints: const BoxConstraints(maxWidth: 342),
                   child: Column(
                     children: [
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8.0),
-                        child: Text(
-                          'Hi, $userName!',
-                          style: const TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF515254),
-                          ),
-                          textAlign: TextAlign.center,
+                      Text(
+                        'Hi, $userName!',
+                        style: const TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF515254),
                         ),
+                        textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 40),
-                      Wrap(
-                        spacing: 20,
-                        runSpacing: 20,
-                        alignment: WrapAlignment.center,
-                        children: const [
-                          DashboardCard(
-                            label: 'Recently Scanned',
-                            icon: Icons.access_time,
-                            color: Color(0xFF91C0C6),
-                          ),
-                          DashboardCard(
-                            label: 'Low Stock',
-                            icon: Icons.warning_amber_rounded,
-                            color: Color(0xFFF5DD98),
-                          ),
-                          DashboardCard(
-                            label: 'Locations',
-                            icon: Icons.location_on_rounded,
-                            color: Color(0xFFCDBDFA),
-                          ),
-                          DashboardCard(
-                            label: 'Total Items',
-                            icon: Icons.list_rounded,
-                            color: Color(0xFFE6BAC8),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 40),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 56,
-                        child: ElevatedButton(
-                          onPressed: () async {
-                            if (kIsWeb) {
-                              final fakeBarcode = '4084500970993';
-                              Navigator.pushNamed(
-                                context,
-                                '/add',
-                                arguments: fakeBarcode,
+                      const SizedBox(height: 24),
+                      isLoading
+                          ? const CircularProgressIndicator()
+                          : items.isEmpty
+                          ? const Text('No items yet.')
+                          : ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: items.length,
+                            itemBuilder: (context, index) {
+                              final item = items[index];
+                              return Card(
+                                color: Colors.white.withAlpha(230),
+                                child: ListTile(
+                                  title: Text(item['name'] ?? 'Unnamed'),
+                                  subtitle: Text(item['location'] ?? 'Unknown'),
+                                  trailing: Text(
+                                    'Qty: ${item['quantity'] ?? '-'}',
+                                  ),
+                                ),
                               );
-                            } else {
-                              final scannedCode = await Navigator.pushNamed(
-                                context,
-                                '/barcode-scan',
-                              );
-                              if (!context.mounted || scannedCode == null) {
-                                return;
-                              }
-                              Navigator.pushNamed(
-                                context,
-                                '/add',
-                                arguments: scannedCode,
-                              );
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF634A8A),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30),
-                            ),
+                            },
                           ),
-                          child: const Text(
-                            'Start Scanning',
-                            style: TextStyle(color: Colors.white, fontSize: 16),
-                          ),
-                        ),
-                      ),
                     ],
                   ),
                 ),
@@ -140,61 +133,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class DashboardCard extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final Color color;
-
-  const DashboardCard({
-    required this.label,
-    required this.icon,
-    required this.color,
-    super.key,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cardWidth = (MediaQuery.of(context).size.width - 72) / 2;
-    final safeWidth = cardWidth.clamp(140.0, 160.0);
-
-    return SizedBox(
-      width: safeWidth,
-      height: 150,
-      child: Container(
-        decoration: BoxDecoration(
-          color: const Color(0xFFFEFEFE),
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x26000000),
-              offset: Offset(0, 2),
-              blurRadius: 8,
-              spreadRadius: 0,
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 48, color: color),
-            const SizedBox(height: 12),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Color(0xFF515254),
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                height: 1.5,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
       ),
     );
   }

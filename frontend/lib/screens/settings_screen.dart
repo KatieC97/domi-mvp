@@ -59,7 +59,7 @@ class SettingsScreen extends StatelessWidget {
                   _buildSettingsOption('Contact Support'),
                   _buildDivider(),
 
-                  // Logout (now functional)
+                  // Logout
                   InkWell(
                     onTap: () {
                       Navigator.of(

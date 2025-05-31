@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:logger/logger.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
 import '../widgets/app_top_bar.dart';
-import '../services/database_helper.dart';
 
 class AddItemScreen extends StatefulWidget {
   const AddItemScreen({super.key});
@@ -22,6 +23,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
   final List<String> locationOptions = ['Kitchen', 'Bathroom', 'Hallway'];
   final TextEditingController _productNameController = TextEditingController();
   final logger = Logger();
+  final storage = const FlutterSecureStorage();
 
   @override
   void didChangeDependencies() {
@@ -63,6 +65,53 @@ class _AddItemScreenState extends State<AddItemScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Product not found')));
+    }
+  }
+
+  Future<void> submitItem() async {
+    final name = _productNameController.text.trim();
+    if (name.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a product name')),
+      );
+      return;
+    }
+
+    try {
+      final storage = FlutterSecureStorage();
+      final token = await storage.read(key: 'access_token');
+      if (token == null) throw Exception("Token not found");
+
+      final response = await http.post(
+        Uri.parse('http://127.0.0.1:8000/items/'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: json.encode({
+          'name': name,
+          'barcode': scannedBarcode ?? '',
+          'location': selectedLocation,
+          'quantity': quantity,
+        }),
+      );
+
+      if (response.statusCode == 201) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Item saved to server')));
+        Navigator.pop(context, 'new_item_added');
+      } else {
+        throw Exception("Failed to save item: ${response.statusCode}");
+      }
+    } catch (e) {
+      logger.e('Error posting item: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Failed to save item')));
     }
   }
 
@@ -117,9 +166,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
                             color: Color(0xFF515254),
                           ),
                           onPressed: () {
-                            setState(() {
-                              isEditable = !isEditable;
-                            });
+                            setState(() => isEditable = !isEditable);
                           },
                         ),
                         enabledBorder: OutlineInputBorder(
@@ -140,88 +187,80 @@ class _AddItemScreenState extends State<AddItemScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  SizedBox(
-                    height: 56,
-                    child: DropdownButtonFormField<String>(
-                      value: selectedLocation,
-                      icon: const Icon(Icons.arrow_drop_down),
-                      decoration: InputDecoration(
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 16,
-                        ),
-                        prefixIcon: const Icon(
-                          Icons.location_on_outlined,
-                          color: Color(0xFF515254),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(30),
-                          borderSide: const BorderSide(
-                            color: Color(0xFFBDBECB),
-                            width: 1,
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(30),
-                          borderSide: const BorderSide(
-                            color: Color(0xFFBDBECB),
-                            width: 1,
-                          ),
-                        ),
+                  DropdownButtonFormField<String>(
+                    value: selectedLocation,
+                    icon: const Icon(Icons.arrow_drop_down),
+                    decoration: InputDecoration(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 16,
                       ),
-                      onChanged:
-                          (value) => setState(() => selectedLocation = value!),
-                      items:
-                          locationOptions
-                              .map(
-                                (location) => DropdownMenuItem(
-                                  value: location,
-                                  child: Text(location),
-                                ),
-                              )
-                              .toList(),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    height: 56,
-                    child: Container(
-                      decoration: BoxDecoration(
+                      prefixIcon: const Icon(
+                        Icons.location_on_outlined,
+                        color: Color(0xFF515254),
+                      ),
+                      enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(30),
-                        border: Border.all(
-                          color: const Color(0xFFBDBECB),
+                        borderSide: const BorderSide(
+                          color: Color(0xFFBDBECB),
                           width: 1,
                         ),
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          IconButton(
-                            icon: const Icon(
-                              Icons.remove,
-                              color: Color(0xFF515254),
-                            ),
-                            onPressed: () {
-                              if (quantity > 1) setState(() => quantity--);
-                            },
-                          ),
-                          Text(
-                            quantity.toString(),
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF515254),
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(
-                              Icons.add,
-                              color: Color(0xFF515254),
-                            ),
-                            onPressed: () => setState(() => quantity++),
-                          ),
-                        ],
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(30),
+                        borderSide: const BorderSide(
+                          color: Color(0xFFBDBECB),
+                          width: 1,
+                        ),
                       ),
+                    ),
+                    onChanged:
+                        (value) => setState(() => selectedLocation = value!),
+                    items:
+                        locationOptions
+                            .map(
+                              (location) => DropdownMenuItem(
+                                value: location,
+                                child: Text(location),
+                              ),
+                            )
+                            .toList(),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    height: 56,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(30),
+                      border: Border.all(
+                        color: const Color(0xFFBDBECB),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        IconButton(
+                          icon: const Icon(
+                            Icons.remove,
+                            color: Color(0xFF515254),
+                          ),
+                          onPressed: () {
+                            if (quantity > 1) setState(() => quantity--);
+                          },
+                        ),
+                        Text(
+                          quantity.toString(),
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF515254),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.add, color: Color(0xFF515254)),
+                          onPressed: () => setState(() => quantity++),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -229,41 +268,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
                     width: double.infinity,
                     height: 56,
                     child: ElevatedButton(
-                      onPressed: () async {
-                        final name = _productNameController.text.trim();
-                        if (name.isEmpty) {
-                          if (!context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Please enter a product name'),
-                            ),
-                          );
-                          return;
-                        }
-
-                        try {
-                          await DatabaseHelper.instance.insertItem({
-                            'name': name,
-                            'location': selectedLocation,
-                            'quantity': quantity,
-                          });
-
-                          if (!context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Item saved successfully'),
-                            ),
-                          );
-                          Navigator.pop(context, 'new_item_added');
-                        } catch (e) {
-                          if (!context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Failed to save item'),
-                            ),
-                          );
-                        }
-                      },
+                      onPressed: submitItem,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF634A8A),
                         shape: RoundedRectangleBorder(
